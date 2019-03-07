@@ -1,0 +1,13 @@
+ENC_MAX_LENGTH = 25
+DEC_MAX_LENGTH = 14
+VOC_DEC_NUM = 20000
+VOC_W2V_NUM = 29194
+
+PAD = '<pad>'
+UNK = '<unk>'
+BOS = '<s>'
+EOS = '</s>'
+PAD_IDX = 0
+UNK_IDX = 1
+BOS_IDX = 2
+EOS_IDX = 3
