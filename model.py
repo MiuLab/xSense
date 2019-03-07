@@ -29,9 +29,9 @@ class DecoderRNN(nn.Module):
         nn.init.xavier_uniform_(self.concat.weight)
         nn.init.xavier_uniform_(self.out.weight)
 
-    def forward(self, input_seq, last_hidden, last_hidden2, masked_h):
+    def forward(self, input_seq, last_hidden, last_hidden2, sense_vec):
         embedded = self.embedding(input_seq)
-        embedded = torch.cat([embedded, masked_h.unsqueeze(0)], dim=-1)
+        embedded = torch.cat((embedded, sense_vec), dim=-1)
         rnn_output, hidden = self.gru(embedded, last_hidden)
         rnn_output, hidden2 = self.gru2(rnn_output, last_hidden2)
         output = self.out(rnn_output.squeeze(0))
@@ -58,13 +58,10 @@ class SPINEModel(torch.nn.Module):
         nn.init.xavier_uniform_(self.linear1.weight)
         nn.init.xavier_uniform_(self.linear2.weight)
 
-    def forward(self, batch):
-        batch = torch.LongTensor(batch)
-        batch = batch.to(device)
-        
-        batch_size = batch.data.shape[0]
-        batch_x = self.embed(batch) + torch.randn(batch_size, self.inp_dim).to(device)*self.noise_level
-        batch_y = self.embed(batch)
+    def forward(self, trg_emb):
+        batch_size = trg_emb.shape[0]
+        batch_x = trg_emb + torch.randn(batch_size, self.inp_dim).to(device)*self.noise_level
+        batch_y = trg_emb
         # forward
         linear1_out = self.linear1(batch_x)
         h = linear1_out.clamp(min=0, max=1) # capped relu
@@ -76,7 +73,7 @@ class SPINEModel(torch.nn.Module):
         asl_loss = self._getASLLoss(h)                                          # average sparsity loss
         total_loss = 7*reconstruction_loss + psl_loss + asl_loss # weights shall be carefully tuned
         
-        return out, h, self.linear1.weight.data, batch_y, total_loss, [reconstruction_loss,psl_loss, asl_loss]
+        return out, h, self.linear1.weight.data, [reconstruction_loss, psl_loss, asl_loss]
 
     def _getPSLLoss(self,h, batch_size):
         return torch.sum(h*(1-h)) / (batch_size*self.hdim)
@@ -86,53 +83,47 @@ class SPINEModel(torch.nn.Module):
         temp = temp.clamp(min=0)
         return torch.mean(temp**2)
 
-# pretrained
-class SIFTable(torch.nn.Module):
-    def __init__(self, embed):
-        super(SIFTable, self).__init__()
-        self.embed = embed
-
-    def forward(self, x):
-        return self.embed(x.to(device))
-
-
 class MaskGenerator(torch.nn.Module):
     def __init__(self, z_dim, enc_dim, K=5, mode='soft'):
         super(MaskGenerator, self).__init__()
         self.mode = mode
         self.K = K
 
-        self.linear = nn.Linear(enc_dim*2, enc_dim)
-        nn.init.xavier_uniform_(self.linear.weight)
+        self.mapping = nn.Linear(enc_dim, enc_dim, bias=False)
+        self.mapping.weight.data.copy_(torch.diag(torch.ones(enc_dim))) # initialize as identity matrix
 
-    def forward(self, sp_z, sp_w, encoded):
-        assert sp_z.shape[0] == encoded.shape[0]
-        
+        if mode in ['soft_cat', 'hard', 'cat']:
+            self.linear = nn.Linear(enc_dim*2, enc_dim)
+            nn.init.xavier_uniform_(self.linear.weight)
+
+    def forward(self, sp_z, sp_w, ctx_emb):
+        aligned_ctx = self.mapping(ctx_emb)
+
         topk, indices = torch.topk(sp_z, self.K, dim=1)    # (bs, k)
         topW = sp_w[indices]                               # (bs, k, 300)
-        attn = nn.functional.softmax(torch.matmul(topW, encoded.unsqueeze(2)), dim=1) # (k, 300) matmul (bs, 300, 1) = (bs, k, 1)       
-        
+        attn = nn.functional.softmax(torch.matmul(topW, aligned_ctx.unsqueeze(2)), dim=1)       
+                                                           # (k, 300) matmul (bs, 300, 1) = (bs, k, 1)
         if self.mode == 'soft':
             out = torch.sum(topW * attn, dim = 1)          # (k, 300) * (bs, k, 1) = (bs, k, 300) -> (bs, 300)
         
         elif self.mode == 'soft_cat':
             out = torch.sum(topW * attn, dim = 1)
-            out = torch.cat((out, encoded), dim=1) 
+            out = torch.cat((out, aligned_ctx), dim=1) 
             out = self.linear(out)
 
         elif self.mode == 'hard':
             out = topW[range(topW.shape[0]), torch.argmax(attn, dim=1).squeeze(),:]
-            out = torch.cat((out, encoded), dim=1) 
+            out = torch.cat((out, aligned_ctx), dim=1) 
             out = self.linear(out)
 
         elif self.mode == 'cat':                           # (k, 300) * (bs, k, 1) = (bs, k, 300) -> (bs, 300)
             sp_info = torch.sum(topW * nn.functional.softmax(topk, dim=1).unsqueeze(2), dim=1)
-            out = torch.cat((sp_info, encoded), dim=1) 
+            out = torch.cat((sp_info, aligned_ctx), dim=1) 
             out = self.linear(out)
         
         return out, attn, indices
 
-
+"""
 class Mapping(nn.Module):
     def __init__(self, enc_dim):
         super(Mapping, self).__init__()
@@ -142,3 +133,12 @@ class Mapping(nn.Module):
 
     def forward(self, embedded):
         return self.mapping(embedded)
+
+class SIFTable(torch.nn.Module):
+    def __init__(self, embed):
+        super(SIFTable, self).__init__()
+        self.embed = embed
+
+    def forward(self, x):
+        return self.embed(x.to(device))
+"""
