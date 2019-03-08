@@ -24,12 +24,14 @@ def evaluateTestFile(decoder, spine, mask_generator, voc_dec, test_data):
     trg_embs, ctx_embs, trg_words, def_sents, ctx_sents = test_data
     out_file = open('outfile.txt', 'w')
     bs = 1024
+    max_sum = 0
     for i in range(0, len(trg_embs), bs):
         trg_emb = torch.FloatTensor(trg_embs[i: i+bs]).to(device)
         ctx_emb = torch.FloatTensor(ctx_embs[i: i+bs]).to(device)
 
         sp_z, sp_w, loss_terms = spine(trg_emb)
         sense_vec, attn, indices = mask_generator(sp_z, sp_w, ctx_emb)
+        max_sum += torch.sum(torch.max(attn, dim=1)[0])
         sense_vec = sense_vec.unsqueeze(0)
 
         decoder_input = torch.LongTensor([[BOS_IDX] * len(trg_emb)]).to(device)
@@ -54,6 +56,7 @@ def evaluateTestFile(decoder, spine, mask_generator, voc_dec, test_data):
 
             out_file.write('{} ; {} ; {} ; {}\n'.format(w, ctx, truth, pre))
     
+    print('avg highes attn value:', max_sum.item()/len(trg_embs))
     out_file.close()
 
 

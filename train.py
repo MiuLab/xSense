@@ -75,7 +75,7 @@ def train(args):
                 losses = np.zeros(4)
 
         # save current model
-        if epoch == args.epoch or epoch % save_every == 0:
+        if epoch == args.epoch or epoch % args.save_every == 0:
             torch.save({
                 'decoder': decoder.state_dict(),
                 'spine': spine.state_dict(),

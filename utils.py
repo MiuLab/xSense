@@ -40,7 +40,7 @@ def load_model(args):
     # build model
     spine = SPINEModel(nn.Embedding(VOC_W2V_NUM, 300))
     n_voc_dec = VOC_DEC_NUM + 4
-    decoder = DecoderRNN(nn.Embedding(n_voc_dec, 300), args.hidden_size, n_voc_dec, args.n_layers, args.dropout)
+    decoder = DecoderRNN(nn.Embedding(n_voc_dec, 300), args.hidden_size, n_voc_dec, args.n_layers)
     mask_generator = MaskGenerator(z_dim=1000, enc_dim=300, K=args.K)
     # load from ckpt
     checkpoint = torch.load(args.model_path)
