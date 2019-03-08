@@ -1,1 +1,1 @@
-python3 main.py -tr data/my_s2s_sent.txt -wv data/my_google_news_train.txt -wf data/my_s2s_word.txt -la 1 -hi 300 -lr 0.0001 -it 150000 -b 128 -p 500 -s 5000 -sif SIF/my_train_sif
+python3 main.py --run train --corpus data/train.txt --w2v_file data/my_google_news_train.txt --sif_file SIF/my_train_sif  --save_dir save --epoch 25 --print_every 500 --save_every 5 --batch_size 128 --n_layers 1 --hidden_size 300 --K 5 --lr 0.0005 --dropout 0.1

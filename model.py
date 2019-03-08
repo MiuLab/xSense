@@ -73,7 +73,7 @@ class SPINEModel(torch.nn.Module):
         asl_loss = self._getASLLoss(h)                                          # average sparsity loss
         total_loss = 7*reconstruction_loss + psl_loss + asl_loss # weights shall be carefully tuned
         
-        return out, h, self.linear1.weight.data, [reconstruction_loss, psl_loss, asl_loss]
+        return h, self.linear1.weight.data, [reconstruction_loss, psl_loss, asl_loss]
 
     def _getPSLLoss(self,h, batch_size):
         return torch.sum(h*(1-h)) / (batch_size*self.hdim)

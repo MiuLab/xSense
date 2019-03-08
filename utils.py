@@ -20,7 +20,7 @@ def build_model_optimizer(args):
     n_voc_dec = VOC_DEC_NUM + 4
     dec_emb = nn.Embedding(n_voc_dec, 300)
     decoder = DecoderRNN(dec_emb, args.hidden_size, n_voc_dec, args.n_layers, args.dropout)
-    mask_generator = MaskGenerator(z_dim=1000, enc_dim=300, K=5)
+    mask_generator = MaskGenerator(z_dim=1000, enc_dim=300, K=args.K)
 
     # use cuda
     dec_emb = dec_emb.to(device)
@@ -34,6 +34,29 @@ def build_model_optimizer(args):
                                     list(decoder.parameters())+list(mask_generator.parameters())), lr=args.lr)
 
     return decoder_optimizer, decoder, mask_generator, spine
+
+
+def load_model(args):
+    # build model
+    spine = SPINEModel(nn.Embedding(VOC_W2V_NUM, 300))
+    n_voc_dec = VOC_DEC_NUM + 4
+    decoder = DecoderRNN(nn.Embedding(n_voc_dec, 300), args.hidden_size, n_voc_dec, args.n_layers, args.dropout)
+    mask_generator = MaskGenerator(z_dim=1000, enc_dim=300, K=args.K)
+    # load from ckpt
+    checkpoint = torch.load(args.model_path)
+    decoder.load_state_dict(checkpoint['decoder'])
+    spine.load_state_dict(checkpoint['spine'])
+    mask_generator.load_state_dict(checkpoint['mask_gen'])
+    decoder.eval()
+    spine.eval()
+    mask_generator.eval()
+
+    # use cuda
+    decoder = decoder.to(device)
+    spine = spine.to(device)
+    mask_generator = mask_generator.to(device)
+
+    return decoder, spine, mask_generator
 
 
 def get_mask(text_len):
@@ -57,11 +80,12 @@ def maskNLLLoss(inp, target, mask):
     s2s_loss = torch.nn.NLLLoss()
     crossEntropy = s2s_loss(inp, target)
     loss = crossEntropy.masked_select(mask).mean()
-    #loss = loss.to(device)
+    
     return loss, nTotal
 
-
+"""
 def clip_parameters(model, clip):
     if clip > 0:
         for x in model.parameters():
             x.data.clamp_(-clip, clip)
+"""

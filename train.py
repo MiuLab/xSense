@@ -32,7 +32,7 @@ def train(args):
             mask = mask.transpose(0, 1) 
             def_ids = def_ids.transpose(0, 1)
 
-            out, sp_z, sp_w, loss_terms = spine(trg_emb)
+            sp_z, sp_w, loss_terms = spine(trg_emb)
             sense_vec, _, _ = mask_generator(sp_z, sp_w, ctx_emb)
             sense_vec = sense_vec.unsqueeze(0)
 
@@ -70,18 +70,18 @@ def train(args):
             if (i+1) % args.print_every == 0:
                 print_loss = 0
                 losses /= args.print_every
-                print("Reconstruction Loss = %.4f, ASL = %.4f, PSL = %.4f, S2S = %.4f, Sparsity = %.2f"
-                                                    %(*losses, compute_sparsity(sp_z.cpu().data.numpy())))
+                print("Rec Loss = %.4f, ASL = %.4f, PSL = %.4f, S2S = %.4f, Sparsity = %.2f"
+                                        %(*losses, compute_sparsity(sp_z.cpu().data.numpy())))
                 losses = np.zeros(4)
 
         # save current model
-        if epoch == 0 or epoch == args.epoch or epoch > 15:
+        if epoch == args.epoch or epoch % save_every == 0:
             torch.save({
                 'decoder': decoder.state_dict(),
                 'spine': spine.state_dict(),
                 'mask_gen': mask_generator.state_dict(),
                 'decoder_opt': decoder_optimizer.state_dict(),
                 'loss': loss
-            }, os.path.join(directory, 'xSense_{}.tar'.format(epoch)))
+            }, os.path.join(args.save_dir, 'model', 'xSense_{}.tar'.format(epoch)))
 
         

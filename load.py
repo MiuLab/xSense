@@ -99,12 +99,28 @@ def prepare_data(corpus, voc_w2v, sif_emb):
     return voc_dec, trg_embs, ctx_embs, def_ids, lengths
 
 
+def prepare_test(corpus, voc_w2v, sif_emb):
+    trg_words, def_sents, ctx_sents = [], [], []
+    trg_embs, ctx_embs = [], []
+    with open(corpus, 'r') as f:
+        for i, line in enumerate(f):
+            w, ctx, defin = line.split(';')
+            w = w.strip()
+            defin = defin.strip()
+            ctx = ctx.strip()
+            if w in voc_w2v.word2index:
+                trg_words.append(w)
+                def_sents.append(defin)
+                ctx_sents.append(ctx)
+                trg_embs.append(voc_w2v.embedding[w])
+                ctx_embs.append(sif_emb[i])
+
+    return trg_embs, ctx_embs, trg_words, def_sents, ctx_sents
+
+
 def loadTrainData(args):
     try:
         print("Start loading training data ...")
-#        voc_w2v = torch.load(os.path.join(args.save_dir, 'voc_w2v.tar'))
-#        voc_dec = torch.load(os.path.join(args.save_dir, 'voc_dec.tar'))
-
         with open(os.path.join(args.save_dir, 'trg_embs'), 'rb') as f:
             trg_embs = pickle.load(f)
         with open(os.path.join(args.save_dir, 'ctx_embs'), 'rb') as f:
@@ -137,3 +153,11 @@ def loadTrainData(args):
 
     return dataloader
 
+
+def loadTestData(args):
+    voc_w2v = torch.load(os.path.join(args.save_dir, 'voc_w2v.tar'))
+    voc_dec = torch.load(os.path.join(args.save_dir, 'voc_dec.tar'))
+    sif_emb = load_sif(args.sif_file)
+    trg_embs, ctx_embs, trg_words, def_sents, ctx_sents = prepare_test(args.corpus, voc_w2v, sif_emb)
+    
+    return voc_dec, [trg_embs, ctx_embs, trg_words, def_sents, ctx_sents]
