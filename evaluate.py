@@ -18,7 +18,7 @@ def evaluateTestFile(decoder, spine, mask_generator, voc_dec, test_data):
         ctx_emb = torch.FloatTensor(ctx_embs[i: i+bs]).to(device)
 
         sp_z, sp_w, loss_terms = spine(trg_emb)
-        aligned_ctx, sense_vec, attn, indices = mask_generator(sp_z, sp_w, ctx_emb)
+        aligned_ctx, sense_vec, attn, _ = mask_generator(sp_z, sp_w, ctx_emb)
         max_sum += torch.sum(torch.max(attn, dim=1)[0])
 
         decoder_input = torch.LongTensor([[BOS_IDX] * len(trg_emb)]).to(device)
