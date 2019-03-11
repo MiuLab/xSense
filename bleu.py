@@ -27,6 +27,7 @@ for idx, o in enumerate(output.decode('utf-8').split('\n')):
         bleus.append(float(o))
     except:
         pass
-print ('total evaluating {} sentences'.format(len(bleus)))
-print ('bleu score mean is {}'.format(np.mean(bleus)))
-print (scores)
+print ('Total evaluating {} sentences'.format(len(bleus)))
+print ('BLEU score mean is {:.3f}'.format(np.mean(bleus)))
+print ('ROUGE-L:F1 is {:.3f}'.format(scores['rouge-l']['f']))
+print(scores)

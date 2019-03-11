@@ -43,7 +43,7 @@ def evaluateTestFile(decoder, spine, mask_generator, voc_dec, test_data):
 
             out_file.write('{} ; {} ; {} ; {}\n'.format(w, ctx, truth, pre))
     
-    print('avg highest attn value:', max_sum.item()/len(trg_embs))
+    print('avg highest attn value: {:.3f}'.format(max_sum.item()/len(trg_embs)))
     out_file.close()
 
 
