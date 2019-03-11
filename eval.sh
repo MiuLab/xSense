@@ -2,5 +2,3 @@ python3 main.py --run test --corpus data/filterE_testfile.txt --sif_file SIF/fil
 
 python3 bleu.py
 
-
-

@@ -1,6 +1,6 @@
 import torch
 from torch.utils.data import TensorDataset, DataLoader
-import constants
+from constants import *
 import numpy as np
 import itertools
 from collections import Counter
@@ -13,17 +13,12 @@ class Voc:
 
         if name == 's2s':
             self.word2index = {
-                constants.PAD: constants.PAD_IDX,
-                constants.UNK: constants.UNK_IDX,
-                constants.BOS: constants.BOS_IDX,
-                constants.EOS: constants.EOS_IDX
+                PAD: PAD_IDX,
+                UNK: UNK_IDX,
+                BOS: BOS_IDX,
+                EOS: EOS_IDX
             }
-            self.index2word = {
-                constants.PAD_IDX: constants.PAD,
-                constants.UNK_IDX: constants.UNK,
-                constants.BOS_IDX: constants.BOS,
-                constants.EOS_IDX: constants.EOS
-            }
+            self.index2word = {v: k for k, v in self.word2index.items()}
             self.n_words = len(self.word2index)
         else:
             self.word2index = {}
@@ -72,7 +67,7 @@ def prepare_data(corpus, voc_w2v, sif_emb):
             w, _, defin = line.split(';')
             w = w.strip()
             sent = defin.strip().split()
-            if len(sent) < constants.DEC_MAX_LENGTH and w in voc_w2v.word2index:
+            if len(sent) < DEC_MAX_LENGTH and w in voc_w2v.word2index:
                 def_sents.append(sent)
                 trg_embs.append(voc_w2v.embedding[w])
                 ctx_embs.append(sif_emb[i])
@@ -83,23 +78,29 @@ def prepare_data(corpus, voc_w2v, sif_emb):
     # get the most common words in corpus and build voc_dec
     voc_dec = Voc(name='s2s')
     count_dict = Counter(itertools.chain(*def_sents))
-    for word, cnt in count_dict.most_common()[:constants.VOC_DEC_NUM]:
+    for word, cnt in count_dict.most_common()[:VOC_DEC_NUM]:
         voc_dec.add_word(word)
 
     # string -> word idx
     def_ids = []
     for sent in def_sents:
-        num_pad = constants.DEC_MAX_LENGTH - len(sent) -1
-        def_ids.append([voc_dec.word2index[w] if w in voc_dec.word2index else constants.UNK_IDX for w in sent]+\
-                        [constants.EOS_IDX] + [constants.PAD_IDX]*num_pad)
+        num_pad = DEC_MAX_LENGTH - len(sent) -1
+        def_ids.append([voc_dec.word2index[w] if w in voc_dec.word2index else UNK_IDX for w in sent]+\
+                        [EOS_IDX] + [PAD_IDX]*num_pad)
 
     assert len(def_ids) == len(trg_embs) == len(ctx_embs) == len(lengths)
-    assert voc_dec.n_words == constants.VOC_DEC_NUM + 4
+    assert voc_dec.n_words == VOC_DEC_NUM + 4
 
     return voc_dec, trg_embs, ctx_embs, def_ids, lengths
 
 
-def prepare_test(corpus, voc_w2v, sif_emb):
+def prepare_test(corpus, voc_w2v, sif_emb, unseen=False):
+    if unseen:
+        import gensim
+        from gensim.models import KeyedVectors
+        from gensim.models import Word2Vec
+        PRETRAIN = KeyedVectors.load_word2vec_format('GoogleNews-vectors-negative300.bin', binary=True)
+
     trg_words, def_sents, ctx_sents = [], [], []
     trg_embs, ctx_embs = [], []
     with open(corpus, 'r') as f:
@@ -108,14 +109,47 @@ def prepare_test(corpus, voc_w2v, sif_emb):
             w = w.strip()
             defin = defin.strip()
             ctx = ctx.strip()
-            if w in voc_w2v.word2index:
-                trg_words.append(w)
-                def_sents.append(defin)
-                ctx_sents.append(ctx)
-                trg_embs.append(voc_w2v.embedding[w])
-                ctx_embs.append(sif_emb[i])
+            if unseen:
+                if w not in voc_w2v.word2index and w in PRETRAIN.wv.vocab:
+                    trg_words.append(w)
+                    def_sents.append(defin)
+                    ctx_sents.append(ctx)
+                    trg_embs.append(PRETRAIN[w])
+                    ctx_embs.append(sif_emb[i])
+            else:
+                if w in voc_w2v.word2index:
+                    trg_words.append(w)
+                    def_sents.append(defin)
+                    ctx_sents.append(ctx)
+                    trg_embs.append(voc_w2v.embedding[w])
+                    ctx_embs.append(sif_emb[i])
 
     return trg_embs, ctx_embs, trg_words, def_sents, ctx_sents
+
+
+def prepare_wic(words_file, ans_file, voc_w2v, sif_emb):
+    trg_embs, ctx_embs, answers, unk_ids = [], [], [], []
+
+    ans_list = open(ans_file, 'r').readlines()
+    with open(words_file, 'r') as f:
+        for i, line in enumerate(f):
+            word = line.strip()
+            if word in voc_w2v.word2index:
+                answers.append(ans_list[i].strip())
+                w_emb = voc_w2v.embedding[word]
+                trg_embs.append(w_emb)
+                trg_embs.append(w_emb)
+                ctx_embs.append(sif_emb[i*2])
+                ctx_embs.append(sif_emb[i*2+1])
+            else:
+                unk_ids.append(i)
+            next(f)
+    
+    print('[{} /{}] {}'.format(len(unk_ids), len(ans_list), \
+                "questions are unkown since the target word embedding is not in W2V !"))
+    assert len(trg_embs) == len(ctx_embs) == 2*len(answers)
+
+    return trg_embs, ctx_embs, answers
 
 
 def loadTrainData(args):
@@ -161,3 +195,11 @@ def loadTestData(args):
     trg_embs, ctx_embs, trg_words, def_sents, ctx_sents = prepare_test(args.corpus, voc_w2v, sif_emb)
     
     return voc_dec, [trg_embs, ctx_embs, trg_words, def_sents, ctx_sents]
+
+
+def loadWicData(args):
+    voc_w2v = torch.load(os.path.join(args.save_dir, 'voc_w2v.tar'))
+    sif_emb = load_sif(args.sif_file)
+    trg_embs, ctx_embs, answers = prepare_wic(args.wic_words_file, args.wic_ans_file, voc_w2v, sif_emb)
+
+    return [trg_embs, ctx_embs, answers]

@@ -33,12 +33,11 @@ def train(args):
             def_ids = def_ids.transpose(0, 1)
 
             sp_z, sp_w, loss_terms = spine(trg_emb)
-            sense_vec, _, _ = mask_generator(sp_z, sp_w, ctx_emb)
-            sense_vec = sense_vec.unsqueeze(0)
-
+            aligned_ctx, sense_vec, _, _ = mask_generator(sp_z, sp_w, ctx_emb)
+        
             decoder_input = torch.LongTensor([[BOS_IDX] * args.batch_size]).to(device)
             decoder_hidden = trg_emb.unsqueeze(0)     
-            decoder_hidden2 = sense_vec
+            decoder_hidden2 = aligned_ctx.unsqueeze(0)
 
             decoder_optimizer.zero_grad()
             loss = 0
@@ -46,7 +45,8 @@ def train(args):
             s2s_sum = 0
             # teacher-forcing
             for t in range(max_target_len):
-                decoder_output, decoder_hidden, decoder_hidden2 = decoder(decoder_input, decoder_hidden, decoder_hidden2, sense_vec)
+                decoder_output, decoder_hidden, decoder_hidden2 = \
+                    decoder(decoder_input, decoder_hidden, decoder_hidden2, sense_vec.unsqueeze(0))
                 decoder_input = def_ids[t].unsqueeze(0) # Next input is current target
                 
                 mask_loss, nTotal = maskNLLLoss(decoder_output, def_ids[t], mask[t])

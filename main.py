@@ -1,14 +1,13 @@
 import argparse
-from train import train
-from evaluate import runTest
-# from evaluate_wic import runTest # compute WIC
 
 def main():
     parser = argparse.ArgumentParser(description='XSense-SIF')
-    parser.add_argument('--run', type=str, default="train", help='train/ test')
+    parser.add_argument('--run', type=str, default="train", help='train, test, wic')
     parser.add_argument('--corpus', type=str, default="data/train.txt", help='Train the model with corpus')
     parser.add_argument('--w2v_file', type=str, default="data/my_google_news_train.txt", help='Train the model with pretrained embeddings')
     parser.add_argument('--sif_file', type=str, default="SIF/my_train_sif", help='Use sif embedding as encoder input')
+    parser.add_argument('--wic_words_file', type=str, default="data/wic_train/wic_word.txt", help='target words of WiC test')
+    parser.add_argument('--wic_ans_file', type=str, default="data/wic_train/wic_ans.txt", help='answer of WiC test')
     parser.add_argument('--model_path', type=str, default="save/model/xSense_25.tar", help='path for checkpoint')
     parser.add_argument('--save_dir', type=str, default="save", help='save directory')
     parser.add_argument('--epoch', type=int, default=25, help='Train the model with * epoches')
@@ -23,10 +22,15 @@ def main():
 
     args = parser.parse_args()
 
-    if args.run == 'train':
+    if args.run == "train":
+        from train import train
         train(args)
-    else:
+    elif args.run == "test":
+        from evaluate import runTest
         runTest(args)
+    else:
+        from evaluate_wic import runWic
+        runWic(args)
 
 
 if __name__ == '__main__':

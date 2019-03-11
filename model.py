@@ -60,7 +60,7 @@ class SPINEModel(torch.nn.Module):
 
     def forward(self, trg_emb):
         batch_size = trg_emb.shape[0]
-        batch_x = trg_emb + torch.randn(batch_size, self.inp_dim).to(device)*self.noise_level
+        batch_x = trg_emb# + torch.randn(batch_size, self.inp_dim).to(device)*self.noise_level
         batch_y = trg_emb
         # forward
         linear1_out = self.linear1(batch_x)
@@ -82,6 +82,7 @@ class SPINEModel(torch.nn.Module):
         temp = torch.mean(h, dim=0) - self.rho_star
         temp = temp.clamp(min=0)
         return torch.mean(temp**2)
+
 
 class MaskGenerator(torch.nn.Module):
     def __init__(self, z_dim, enc_dim, K=5, mode='soft'):
@@ -121,24 +122,4 @@ class MaskGenerator(torch.nn.Module):
             out = torch.cat((sp_info, aligned_ctx), dim=1) 
             out = self.linear(out)
         
-        return out, attn, indices
-
-"""
-class Mapping(nn.Module):
-    def __init__(self, enc_dim):
-        super(Mapping, self).__init__()
-
-        self.mapping = nn.Linear(enc_dim, enc_dim, bias=False)
-        self.mapping.weight.data.copy_(torch.diag(torch.ones(enc_dim))) # initialize as identity matrix
-
-    def forward(self, embedded):
-        return self.mapping(embedded)
-
-class SIFTable(torch.nn.Module):
-    def __init__(self, embed):
-        super(SIFTable, self).__init__()
-        self.embed = embed
-
-    def forward(self, x):
-        return self.embed(x.to(device))
-"""
+        return aligned_ctx, out, attn, torch.argmax(attn, dim=1).squeeze()

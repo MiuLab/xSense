@@ -3,7 +3,7 @@ import torch.nn as nn
 from torch import optim
 import numpy as np
 from model import DecoderRNN, SPINEModel, MaskGenerator
-from constants import VOC_DEC_NUM, VOC_W2V_NUM
+from constants import VOC_DEC_NUM, VOC_W2V_NUM, EOS_IDX
 
 USE_CUDA = torch.cuda.is_available()
 device = torch.device("cuda" if USE_CUDA else "cpu")
@@ -82,6 +82,19 @@ def maskNLLLoss(inp, target, mask):
     loss = crossEntropy.masked_select(mask).mean()
     
     return loss, nTotal
+
+
+def id2sent(sent_ids, voc_dec):
+    words = []
+    for idx in sent_ids:
+        idx = idx.item()
+        if idx == EOS_IDX:
+            break
+        else:
+            words.append(voc_dec.index2word[idx])
+
+    return ' '.join(words)
+
 
 """
 def clip_parameters(model, clip):

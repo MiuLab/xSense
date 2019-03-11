@@ -8,18 +8,6 @@ USE_CUDA = torch.cuda.is_available()
 device = torch.device("cuda" if USE_CUDA else "cpu")
 
 
-def id2sent(out_ids, voc_dec):
-    words = []
-    for idx in out_ids:
-        idx = idx.item()
-        if idx == EOS_IDX:
-            break
-        else:
-            words.append(voc_dec.index2word[idx])
-
-    return ' '.join(words)
-
-
 def evaluateTestFile(decoder, spine, mask_generator, voc_dec, test_data):
     trg_embs, ctx_embs, trg_words, def_sents, ctx_sents = test_data
     out_file = open('outfile.txt', 'w')
@@ -30,17 +18,16 @@ def evaluateTestFile(decoder, spine, mask_generator, voc_dec, test_data):
         ctx_emb = torch.FloatTensor(ctx_embs[i: i+bs]).to(device)
 
         sp_z, sp_w, loss_terms = spine(trg_emb)
-        sense_vec, attn, indices = mask_generator(sp_z, sp_w, ctx_emb)
+        aligned_ctx, sense_vec, attn, indices = mask_generator(sp_z, sp_w, ctx_emb)
         max_sum += torch.sum(torch.max(attn, dim=1)[0])
-        sense_vec = sense_vec.unsqueeze(0)
 
         decoder_input = torch.LongTensor([[BOS_IDX] * len(trg_emb)]).to(device)
         decoder_hidden = trg_emb.unsqueeze(0)     
-        decoder_hidden2 = sense_vec
+        decoder_hidden2 = aligned_ctx.unsqueeze(0)
 
         for j in range(DEC_MAX_LENGTH):
             decoder_output, decoder_hidden, decoder_hidden2 = decoder(
-                decoder_input, decoder_hidden, decoder_hidden2, sense_vec
+                decoder_input, decoder_hidden, decoder_hidden2, sense_vec.unsqueeze(0)
             )
             # decoder_output: (bs, n_voc), decoder_input: (1, bs)
             out = torch.argmax(decoder_output, dim=1)   # (bs,)
