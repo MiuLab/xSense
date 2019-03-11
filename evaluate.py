@@ -1,8 +1,8 @@
 import torch
 from utils import *
 from load import loadTestData
-from constants import BOS_IDX, EOS_IDX, DEC_MAX_LENGTH
-import visualize_online
+from constants import BOS_IDX, DEC_MAX_LENGTH
+#import visualize_online
 
 USE_CUDA = torch.cuda.is_available()
 device = torch.device("cuda" if USE_CUDA else "cpu")
