@@ -203,3 +203,12 @@ def loadWicData(args):
     trg_embs, ctx_embs, answers = prepare_wic(args.wic_words_file, args.wic_ans_file, voc_w2v, sif_emb)
 
     return [trg_embs, ctx_embs, answers]
+
+
+def loadPretrainData(args):
+    voc_w2v = torch.load(os.path.join(args.save_dir, 'voc_w2v.tar'))
+    trg_embs = list(voc_w2v.embedding.values())
+    pretrain_data = TensorDataset(torch.FloatTensor(trg_embs))
+    dataloader = DataLoader(pretrain_data, batch_size=args.batch_size, shuffle=True)
+
+    return dataloader

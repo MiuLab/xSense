@@ -3,7 +3,7 @@ import torch.nn as nn
 import numpy as np
 import os
 from tqdm import tqdm
-from load import loadTrainData
+from load import loadTrainData, loadPretrainData
 from utils import *
 from constants import BOS_IDX
 
@@ -83,4 +83,32 @@ def train(args):
                 'loss': loss
             }, os.path.join(args.save_dir, 'model', 'xSense_{}.tar'.format(epoch)))
 
+
+def pretrain_spine(args):
+    dataloader = loadPretrainData(args)
+    optimizer, spine = build_model_optimizer(args)
+    best_score = 0
+    for epoch in tqdm(range(1, args.epoch+1)):
+        for i, trg_emb in enumerate(dataloader):
+            trg_emb = trg_emb[0].to(device)
+            optimizer.zero_grad()
+            sp_z, sp_w, loss_terms = spine(trg_emb)
+            rec_loss, psl_loss, asl_loss = loss_terms
+            loss = 7*rec_loss + psl_loss + asl_loss
+            loss.backward()
+            optimizer.step()
+            spine.orthogonalize()
+
+        sparsity = compute_sparsity(sp_z.cpu().data.numpy())
+        print("Rec Loss = %.4f, ASL = %.4f, PSL = %.4f, Sparsity = %.2f"
+            %(rec_loss, asl_loss, psl_loss, sparsity))
+        
+        if sparsity > best_score:
+            best_score = sparsity
+            torch.save({
+                'epoch': epoch,
+                'sparsity': sparsity,
+                'spine': spine.state_dict(),
+                'optimizer': optimizer.state_dict(),
+            }, os.path.join(args.save_dir, 'model', 'pretrained_spine.tar'))
         

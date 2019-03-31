@@ -11,34 +11,42 @@ torch.manual_seed(200)
 
 def build_model_optimizer(args):
     print('Building models ...')
-    # load pretrained model
-    spine = SPINEModel(nn.Embedding(VOC_W2V_NUM, 300))
-    sp_ckpt = torch.load('save/model/pretrained_spine.tar')                                                                      
-    spine.load_state_dict(sp_ckpt['sp'])
+    if args.run == "pretrain":
+        spine = SPINEModel(pretrain=True)
+        spine = spine.to(device)
+        spine_optimizer = optim.Adam(filter(lambda p: p.requires_grad, spine.parameters()), lr=args.lr)
 
-    # build model
-    n_voc_dec = VOC_DEC_NUM + 4
-    dec_emb = nn.Embedding(n_voc_dec, 300)
-    decoder = DecoderRNN(dec_emb, args.hidden_size, n_voc_dec, args.n_layers, args.dropout)
-    mask_generator = MaskGenerator(z_dim=1000, enc_dim=300, K=args.K)
+        return spine_optimizer, spine
 
-    # use cuda
-    dec_emb = dec_emb.to(device)
-    decoder = decoder.to(device)
-    spine = spine.to(device)
-    mask_generator = mask_generator.to(device)
+    else:
+        # load pretrained model
+        spine = SPINEModel(pretrain=False) #TODO: embed is removed !
+        sp_ckpt = torch.load('save/model/pretrained_spine.tar')                                                                      
+        spine.load_state_dict(sp_ckpt['spine'])
 
-    # optimizer
-    print('Building optimizers ...')
-    decoder_optimizer = optim.Adam(filter(lambda p: p.requires_grad, \
-                                    list(decoder.parameters())+list(mask_generator.parameters())), lr=args.lr)
+        # build model
+        n_voc_dec = VOC_DEC_NUM + 4
+        dec_emb = nn.Embedding(n_voc_dec, 300)
+        decoder = DecoderRNN(dec_emb, args.hidden_size, n_voc_dec, args.n_layers, args.dropout)
+        mask_generator = MaskGenerator(z_dim=1000, enc_dim=300, K=args.K)
 
-    return decoder_optimizer, decoder, mask_generator, spine
+        # use cuda
+        dec_emb = dec_emb.to(device)
+        decoder = decoder.to(device)
+        spine = spine.to(device)
+        mask_generator = mask_generator.to(device)
+
+        # optimizer
+        print('Building optimizers ...')
+        decoder_optimizer = optim.Adam(filter(lambda p: p.requires_grad, \
+                                        list(decoder.parameters())+list(mask_generator.parameters())), lr=args.lr)
+
+        return decoder_optimizer, decoder, mask_generator, spine
 
 
 def load_model(args):
     # build model
-    spine = SPINEModel(nn.Embedding(VOC_W2V_NUM, 300))
+    spine = SPINEModel(pretrain=False)
     n_voc_dec = VOC_DEC_NUM + 4
     decoder = DecoderRNN(nn.Embedding(n_voc_dec, 300), args.hidden_size, n_voc_dec, args.n_layers)
     mask_generator = MaskGenerator(z_dim=1000, enc_dim=300, K=args.K)

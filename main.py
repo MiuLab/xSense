@@ -2,7 +2,7 @@ import argparse
 
 def main():
     parser = argparse.ArgumentParser(description='XSense-SIF')
-    parser.add_argument('--run', type=str, default="train", help='train, test, wic')
+    parser.add_argument('--run', type=str, default="train", help='pretrain, train, test, wic')
     parser.add_argument('--corpus', type=str, default="data/train.txt", help='Train the model with corpus')
     parser.add_argument('--w2v_file', type=str, default="data/my_google_news_train.txt", help='Train the model with pretrained embeddings')
     parser.add_argument('--sif_file', type=str, default="SIF/my_train_sif", help='Use sif embedding as encoder input')
@@ -22,7 +22,11 @@ def main():
 
     args = parser.parse_args()
 
-    if args.run == "train":
+    if args.run == "pretrain":
+        from train import pretrain_spine
+        pretrain_spine(args)
+
+    elif args.run == "train":
         from train import train
         train(args)
     elif args.run == "test":

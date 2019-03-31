@@ -41,7 +41,7 @@ class DecoderRNN(nn.Module):
 # pretrained
 class SPINEModel(torch.nn.Module):
 
-    def __init__(self, embedding):
+    def __init__(self, pretrain=False):
         super(SPINEModel, self).__init__()
         
         self.inp_dim = 300
@@ -49,17 +49,18 @@ class SPINEModel(torch.nn.Module):
         self.noise_level = 0.2
         self.getReconstructionLoss = nn.MSELoss()
         self.rho_star = 1.0 - 0.85
-        
+        self.pretrain = pretrain
+
         # autoencoder
-        self.embed = embedding
         self.linear1 = nn.Linear(self.inp_dim, self.hdim)
         self.linear2 = nn.Linear(self.hdim, self.inp_dim)
         nn.init.xavier_uniform_(self.linear1.weight)
         nn.init.xavier_uniform_(self.linear2.weight)
 
     def forward(self, trg_emb):
+        
         batch_size = trg_emb.shape[0]
-        batch_x = trg_emb# + torch.randn(batch_size, self.inp_dim).to(device)*self.noise_level
+        batch_x = trg_emb + torch.randn(batch_size, self.inp_dim).to(device)*self.noise_level if self.pretrain else trg_emb
         batch_y = trg_emb
         # forward
         linear1_out = self.linear1(batch_x)
@@ -70,9 +71,9 @@ class SPINEModel(torch.nn.Module):
         reconstruction_loss = self.getReconstructionLoss(out, batch_y.detach()) # reconstruction loss
         psl_loss = self._getPSLLoss(h, batch_size)                              # partial sparsity loss
         asl_loss = self._getASLLoss(h)                                          # average sparsity loss
-        total_loss = 7*reconstruction_loss + psl_loss + asl_loss # weights shall be carefully tuned
         
         return h, self.linear1.weight.data, [reconstruction_loss, psl_loss, asl_loss]
+
 
     def _getPSLLoss(self,h, batch_size):
         return torch.sum(h*(1-h)) / (batch_size*self.hdim)
@@ -82,6 +83,11 @@ class SPINEModel(torch.nn.Module):
         temp = temp.clamp(min=0)
         return torch.mean(temp**2)
 
+    def orthogonalize(self, beta=0.01):
+        W = self.linear1.weight.data
+        W.copy_((1 + beta) * W - beta * W.mm(W.transpose(0, 1).mm(W)))
+
+        
 
 class MaskGenerator(torch.nn.Module):
     def __init__(self, z_dim, enc_dim, K=5, mode='soft'):
