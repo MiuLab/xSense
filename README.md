@@ -32,10 +32,7 @@ Main paper to be cited
 ```
 @article{chang2018xSense,
   title={xSense: Learning Sense-Separated Sparse Representations and Textual Definitions for Explainable Word Sense Networks},
-  author={Ting{-}Yun Chang and
-          Ta{-}Chung Chi and
-          Shang{-}Chi Tsai and
-          Yun{-}Nung Chen},
+  author={Chang, Ting-Yun and Chi, Ta-Chung and Tsai, Shang-Chi and Chen, Yun-Nung},
   journal={arXiv preprint https://arxiv.org/abs/1809.03348},
   year={2019}
 }
