@@ -5,7 +5,7 @@
 This repository contains the official PyTorch implementation of the following paper:
 
 > **xSense: Learning Sense-Separated Sparse Representations and Textual Definitions for Explainable Word Sense Networks**<br>
-> Ting-Yun Chang, Ta-Chung Chi, Shang-Chi Tsai, Yun-Nung Chen<br>
+> *Ting-Yun Chang, *Ta-Chung Chi, *Shang-Chi Tsai, Yun-Nung Chen<br>
 > https://arxiv.org/pdf/1809.03348.pdf
 >
 > **Abstract:** *Word embeddings are difficult to interpret due to their dense vector nature.
@@ -24,3 +24,20 @@ $ bash run.sh
 ```bash
 $ bash eval.sh
 ```
+
+### Reference:
+
+Main paper to be cited
+
+```
+@article{chang2018xSense,
+  title={xSense: Learning Sense-Separated Sparse Representations and Textual Definitions for Explainable Word Sense Networks},
+  author={Ting{-}Yun Chang and
+          Ta{-}Chung Chi and
+          Shang{-}Chi Tsai and
+          Yun{-}Nung Chen},
+  journal={arXiv preprint https://arxiv.org/abs/1809.03348},
+  year={2019}
+}
+```
+
