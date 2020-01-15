@@ -25,10 +25,7 @@ def train(args):
             def_ids = def_ids.to(device)
             length = length.to(device)
 
-            mask, max_target_len = get_mask(length)
-            mask = mask.to(device)
             # (seq, batch)
-            mask = mask.transpose(0, 1) 
             def_ids = def_ids.transpose(0, 1)
 
             sp_z, sp_w, loss_terms = spine(trg_emb)
@@ -40,12 +37,14 @@ def train(args):
 
             decoder_optimizer.zero_grad()
             # teacher-forcing
+            losses = torch.zeros(args.batch_size).to(device)
             for t in range(max_target_len):
                 decoder_output, decoder_hidden, decoder_hidden2 = \
                     decoder(decoder_input, decoder_hidden, decoder_hidden2, sense_vec.unsqueeze(0))
                 decoder_input = def_ids[t].unsqueeze(0) # Next input is current target
-                loss += F.cross_entropy(decoder_output, dec_refs[t], ignore_index=PAD_IDX) 
-                
+                losses += F.cross_entropy(decoder_output, dec_refs[t], ignore_index=PAD_IDX, reduction='none')
+ 
+            loss = torch.mean(losses / length.float())
             loss.backward()
             torch.nn.utils.clip_grad_norm_(decoder.parameters(), 50.0)
 
