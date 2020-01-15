@@ -5,7 +5,7 @@ import os
 from tqdm import tqdm
 from load import loadTrainData, loadPretrainData
 from utils import *
-from constants import BOS_IDX
+from constants import BOS_IDX, PAD_IDX
 
 USE_CUDA = torch.cuda.is_available()
 device = torch.device("cuda" if USE_CUDA else "cpu")
@@ -39,20 +39,12 @@ def train(args):
             decoder_hidden2 = aligned_ctx.unsqueeze(0)
 
             decoder_optimizer.zero_grad()
-            loss = 0
-            n_totals = 0
-            s2s_sum = 0
             # teacher-forcing
             for t in range(max_target_len):
                 decoder_output, decoder_hidden, decoder_hidden2 = \
                     decoder(decoder_input, decoder_hidden, decoder_hidden2, sense_vec.unsqueeze(0))
                 decoder_input = def_ids[t].unsqueeze(0) # Next input is current target
-                
-                mask_loss, nTotal = maskNLLLoss(decoder_output, def_ids[t], mask[t])
-                s2s_sum += mask_loss.item() * nTotal
-                n_totals += nTotal
-
-                loss += mask_loss
+                loss += F.cross_entropy(decoder_output, dec_refs[t], ignore_index=PAD_IDX) 
                 
             loss.backward()
             torch.nn.utils.clip_grad_norm_(decoder.parameters(), 50.0)
@@ -64,7 +56,7 @@ def train(args):
             losses[0] += reconstruction_loss.item()
             losses[1] += asl_loss.item()
             losses[2] += psl_loss.item()
-            losses[3] += s2s_sum / n_totals
+            losses[3] += loss.item()
                     
             if (i+1) % args.print_every == 0:
                 print_loss = 0
