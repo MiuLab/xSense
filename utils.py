@@ -4,6 +4,7 @@ from torch import optim
 import numpy as np
 from model import DecoderRNN, SPINEModel, MaskGenerator
 from constants import VOC_DEC_NUM, VOC_W2V_NUM, EOS_IDX
+import torch.nn.functional as F
 
 USE_CUDA = torch.cuda.is_available()
 device = torch.device("cuda" if USE_CUDA else "cpu")
@@ -85,7 +86,7 @@ def compute_sparsity(X):
 
 def maskNLLLoss(inp, target, mask):
     nTotal = mask.sum().item()
-    loss_all = F.nll_loss(rnn_out, target, reduction='none')
+    loss_all = F.nll_loss(inp, target, reduction='none')
     loss = loss_all.masked_select(mask).mean()
     
     return loss, nTotal
