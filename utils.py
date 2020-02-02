@@ -85,9 +85,8 @@ def compute_sparsity(X):
 
 def maskNLLLoss(inp, target, mask):
     nTotal = mask.sum().item()
-    s2s_loss = torch.nn.NLLLoss()
-    crossEntropy = s2s_loss(inp, target)
-    loss = crossEntropy.masked_select(mask).mean()
+    loss_all = F.nll_loss(rnn_out, target, reduction='none')
+    loss = loss_all.masked_select(mask).mean()
     
     return loss, nTotal
 

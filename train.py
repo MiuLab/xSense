@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import numpy as np
 import os
 from tqdm import tqdm
@@ -17,7 +18,7 @@ def train(args):
     dataloader = loadTrainData(args)
 
     decoder_optimizer, decoder, mask_generator, spine = build_model_optimizer(args)
-    losses = np.zeros(4)
+    log_loss = np.zeros(4)
     for epoch in tqdm(range(1, args.epoch+1)):
         for i, (trg_emb, ctx_emb, def_ids, length) in enumerate(dataloader):
             trg_emb = trg_emb.to(device)
@@ -38,11 +39,12 @@ def train(args):
             decoder_optimizer.zero_grad()
             # teacher-forcing
             losses = torch.zeros(args.batch_size).to(device)
-            for t in range(max_target_len):
+            max_len = torch.max(length).item() # max length in the current batch
+            for t in range(max_len):
                 decoder_output, decoder_hidden, decoder_hidden2 = \
                     decoder(decoder_input, decoder_hidden, decoder_hidden2, sense_vec.unsqueeze(0))
                 decoder_input = def_ids[t].unsqueeze(0) # Next input is current target
-                losses += F.cross_entropy(decoder_output, dec_refs[t], ignore_index=PAD_IDX, reduction='none')
+                losses += F.cross_entropy(decoder_output, def_ids[t], ignore_index=PAD_IDX, reduction='none')
  
             loss = torch.mean(losses / length.float())
             loss.backward()
@@ -52,17 +54,17 @@ def train(args):
 
             # print log
             reconstruction_loss, psl_loss, asl_loss = loss_terms
-            losses[0] += reconstruction_loss.item()
-            losses[1] += asl_loss.item()
-            losses[2] += psl_loss.item()
-            losses[3] += loss.item()
+            log_loss[0] += reconstruction_loss.item()
+            log_loss[1] += asl_loss.item()
+            log_loss[2] += psl_loss.item()
+            log_loss[3] += loss.item()
                     
             if (i+1) % args.print_every == 0:
                 print_loss = 0
-                losses /= args.print_every
+                log_loss /= args.print_every
                 print("Rec Loss = %.4f, ASL = %.4f, PSL = %.4f, S2S = %.4f, Sparsity = %.2f"
-                                        %(*losses, compute_sparsity(sp_z.cpu().data.numpy())))
-                losses = np.zeros(4)
+                                        %(*log_loss, compute_sparsity(sp_z.cpu().data.numpy())))
+                log_loss = np.zeros(4)
 
         # save current model
         if epoch == args.epoch or epoch % args.save_every == 0:
